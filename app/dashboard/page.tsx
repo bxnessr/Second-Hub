@@ -1,3 +1,5 @@
+"use client"
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -5,66 +7,108 @@ import { Progress } from "@/components/ui/progress"
 import { Star, Recycle, Calendar, Leaf } from "lucide-react"
 import DashboardLayout from "@/components/dashboard-layout"
 import Link from "next/link"
-
-const upcomingPickups = [
-  {
-    id: 1,
-    type: "Recyclables Pickup",
-    date: "May 9, 2025",
-    time: "9:00 AM - 12:00 PM",
-  },
-  {
-    id: 2,
-    type: "Compost Pickup",
-    date: "May 16, 2025",
-    time: "1:00 PM - 4:00 PM",
-  },
-]
-
-const pickupHistory = [
-  {
-    id: "PU-1234",
-    date: "May 2, 2025",
-    type: "Recyclables",
-    weight: "5.2 kg",
-    points: 52,
-    status: "Completed",
-  },
-  {
-    id: "PU-1235",
-    date: "April 25, 2025",
-    type: "Compost",
-    weight: "3.8 kg",
-    points: 38,
-    status: "Completed",
-  },
-  {
-    id: "PU-1236",
-    date: "April 18, 2025",
-    type: "Electronic",
-    weight: "2.1 kg",
-    points: 63,
-    status: "Completed",
-  },
-  {
-    id: "PU-1237",
-    date: "April 10, 2025",
-    type: "General Waste",
-    weight: "4.5 kg",
-    points: 22,
-    status: "Completed",
-  },
-  {
-    id: "PU-1238",
-    date: "April 3, 2025",
-    type: "Recyclables",
-    weight: "6.7 kg",
-    points: 67,
-    status: "Completed",
-  },
-]
+import { useState, useEffect } from "react"
+import { supabase } from "@/lib/supabase"
+import type { User } from "@supabase/supabase-js"
 
 export default function DashboardPage() {
+  const [user, setUser] = useState<User | null>(null)
+  const [profile, setProfile] = useState<any>(null)
+  const [upcomingPickups, setUpcomingPickups] = useState<any[]>([])
+  const [wasteHistory, setWasteHistory] = useState<any[]>([])
+  const [stats, setStats] = useState({
+    totalPoints: 0,
+    wasteRecycled: 0,
+    pickupsCompleted: 0,
+    co2Saved: 0
+  })
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetchUserData()
+  }, [])
+
+  const fetchUserData = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      setUser(user)
+
+      // Fetch user profile
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single()
+
+      setProfile(profileData)
+
+      // Fetch upcoming pickups
+      const { data: pickupsData } = await supabase
+        .from('pickups')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('status', 'scheduled')
+        .gte('pickup_date', new Date().toISOString().split('T')[0])
+        .order('pickup_date', { ascending: true })
+        .limit(2)
+
+      setUpcomingPickups(pickupsData || [])
+
+      // Fetch waste history
+      const { data: wasteData } = await supabase
+        .from('waste_logs')
+        .select(`
+          *,
+          waste_types (name)
+        `)
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(5)
+
+      setWasteHistory(wasteData || [])
+
+      // Calculate stats
+      const { data: allWasteData } = await supabase
+        .from('waste_logs')
+        .select('weight, points_earned, status')
+        .eq('user_id', user.id)
+
+      const { data: allPickupsData } = await supabase
+        .from('pickups')
+        .select('status')
+        .eq('user_id', user.id)
+
+      if (allWasteData && allPickupsData) {
+        const totalWeight = allWasteData.reduce((sum, log) => sum + Number(log.weight), 0)
+        const totalPoints = allWasteData.reduce((sum, log) => sum + log.points_earned, 0)
+        const completedPickups = allPickupsData.filter(p => p.status === 'completed').length
+        
+        setStats({
+          totalPoints,
+          wasteRecycled: totalWeight,
+          pickupsCompleted: completedPickups,
+          co2Saved: Math.round(totalWeight * 2.8) // Rough estimate: 1kg waste = 2.8kg CO2 saved
+        })
+      }
+
+    } catch (error) {
+      console.error('Error fetching user data:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-lg">Loading...</div>
+        </div>
+      </DashboardLayout>
+    )
+  }
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -72,7 +116,7 @@ export default function DashboardPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-            <p className="text-gray-600">Welcome back, John! Here's your waste management overview.</p>
+            <p className="text-gray-600">Welcome back, {profile?.first_name || user?.email?.split('@')[0]}! Here's your waste management overview.</p>
           </div>
           <Link href="/dashboard/log-waste">
             <Button className="bg-[#1A7F3D] hover:bg-[#1A7F3D]/90 text-white">+ Log New Waste</Button>
@@ -87,8 +131,8 @@ export default function DashboardPage() {
                 <span className="text-sm text-gray-600">Total Points</span>
                 <Star className="h-4 w-4 text-[#1A7F3D]" />
               </div>
-              <div className="text-2xl font-bold text-gray-900">1,250</div>
-              <div className="text-xs text-[#1A7F3D]">+120 this month</div>
+              <div className="text-2xl font-bold text-gray-900">{stats.totalPoints.toLocaleString()}</div>
+              <div className="text-xs text-[#1A7F3D]">Total earned</div>
             </CardContent>
           </Card>
 
@@ -98,8 +142,8 @@ export default function DashboardPage() {
                 <span className="text-sm text-gray-600">Waste Recycled</span>
                 <Recycle className="h-4 w-4 text-[#1A7F3D]" />
               </div>
-              <div className="text-2xl font-bold text-gray-900">42.3 kg</div>
-              <div className="text-xs text-[#1A7F3D]">+15% from last month</div>
+              <div className="text-2xl font-bold text-gray-900">{stats.wasteRecycled.toFixed(1)} kg</div>
+              <div className="text-xs text-[#1A7F3D]">Total processed</div>
             </CardContent>
           </Card>
 
@@ -109,8 +153,8 @@ export default function DashboardPage() {
                 <span className="text-sm text-gray-600">Pickups Completed</span>
                 <Calendar className="h-4 w-4 text-[#1A7F3D]" />
               </div>
-              <div className="text-2xl font-bold text-gray-900">8</div>
-              <div className="text-xs text-[#1A7F3D]">2 scheduled this month</div>
+              <div className="text-2xl font-bold text-gray-900">{stats.pickupsCompleted}</div>
+              <div className="text-xs text-[#1A7F3D]">{upcomingPickups.length} upcoming</div>
             </CardContent>
           </Card>
 
@@ -120,7 +164,7 @@ export default function DashboardPage() {
                 <span className="text-sm text-gray-600">Environmental Impact</span>
                 <Leaf className="h-4 w-4 text-[#1A7F3D]" />
               </div>
-              <div className="text-2xl font-bold text-gray-900">120 kg CO₂</div>
+              <div className="text-2xl font-bold text-gray-900">{stats.co2Saved} kg CO₂</div>
               <div className="text-xs text-[#1A7F3D]">Emissions saved</div>
             </CardContent>
           </Card>
@@ -171,14 +215,14 @@ export default function DashboardPage() {
             </div>
           </CardHeader>
           <CardContent className="space-y-3">
-            {upcomingPickups.map((pickup) => (
+            {upcomingPickups.length > 0 ? upcomingPickups.map((pickup) => (
               <div key={pickup.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                 <div className="flex items-center space-x-3">
                   <Calendar className="h-5 w-5 text-[#1A7F3D]" />
                   <div>
-                    <div className="font-medium text-gray-900">{pickup.type}</div>
+                    <div className="font-medium text-gray-900">{pickup.waste_types?.join(', ')} Pickup</div>
                     <div className="text-sm text-gray-600">
-                      {pickup.date} • {pickup.time}
+                      {new Date(pickup.pickup_date).toLocaleDateString()} • {pickup.pickup_time_start} - {pickup.pickup_time_end}
                     </div>
                   </div>
                 </div>
@@ -186,7 +230,15 @@ export default function DashboardPage() {
                   Reschedule
                 </Button>
               </div>
-            ))}
+            )) : (
+              <div className="text-center text-gray-500 py-8">
+                <Calendar className="h-12 w-12 mx-auto mb-2 text-gray-300" />
+                <p>No upcoming pickups scheduled</p>
+                <Link href="/dashboard/schedule">
+                  <Button className="mt-2 bg-[#1A7F3D] hover:bg-[#1A7F3D]/90">Schedule Pickup</Button>
+                </Link>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -217,21 +269,28 @@ export default function DashboardPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {pickupHistory.map((pickup) => (
-                    <tr key={pickup.id} className="border-b border-gray-100">
-                      <td className="py-3 text-gray-900">{pickup.id}</td>
-                      <td className="py-3 text-gray-700">{pickup.date}</td>
-                      <td className="py-3 text-gray-700">{pickup.type}</td>
-                      <td className="py-3 text-gray-700">{pickup.weight}</td>
+                  {wasteHistory.map((log) => (
+                    <tr key={log.id} className="border-b border-gray-100">
+                      <td className="py-3 text-gray-900">{log.id.slice(0, 8)}</td>
+                      <td className="py-3 text-gray-700">{new Date(log.created_at).toLocaleDateString()}</td>
+                      <td className="py-3 text-gray-700">{log.waste_types?.name}</td>
+                      <td className="py-3 text-gray-700">{log.weight} kg</td>
                       <td className="py-3">
                         <div className="flex items-center space-x-1">
                           <Star className="h-3 w-3 text-[#1A7F3D]" />
-                          <span className="text-[#1A7F3D] font-medium">{pickup.points}</span>
+                          <span className="text-[#1A7F3D] font-medium">{log.points_earned}</span>
                         </div>
                       </td>
                       <td className="py-3">
-                        <Badge variant="secondary" className="bg-green-100 text-green-800">
-                          {pickup.status}
+                        <Badge 
+                          variant="secondary" 
+                          className={
+                            log.status === 'completed' ? 'bg-green-100 text-green-800' :
+                            log.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-gray-100 text-gray-800'
+                          }
+                        >
+                          {log.status}
                         </Badge>
                       </td>
                     </tr>
