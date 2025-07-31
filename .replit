@@ -6,3 +6,15 @@ channel = "stable-25_05"
 
 [deployment]
 run = ["sh", "-c", "npm run dev"]
+
+[workflows]
+runButton = "Start Development Server"
+
+[[workflows.workflow]]
+name = "Start Development Server"
+author = 41733600
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm run dev -- --hostname 0.0.0.0 --port 3000"
