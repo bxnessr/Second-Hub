@@ -53,7 +53,6 @@ export default function DashboardPage() {
   const [recentWasteLogs, setRecentWasteLogs] = useState<WasteLog[]>([])
   const [upcomingPickups, setUpcomingPickups] = useState<Pickup[]>([])
   const [loading, setLoading] = useState(true)
-  const supabase = createClient()
 
   useEffect(() => {
     fetchDashboardData()
