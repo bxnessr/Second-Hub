@@ -111,5 +111,93 @@ export const database = {
     
     if (error) throw error
     return data
+  },
+
+  // Staff functions
+  async getStaff() {
+    const { data, error } = await supabase
+      .from('staff')
+      .select(`
+        *,
+        profiles!staff_user_id_fkey(first_name, last_name, phone)
+      `)
+      .eq('is_active', true)
+      .order('created_at')
+    
+    if (error) throw error
+    return data
+  },
+
+  async createStaff(staffData: any) {
+    const { data, error } = await supabase
+      .from('staff')
+      .insert(staffData)
+      .select()
+      .single()
+    
+    if (error) throw error
+    return data
+  },
+
+  // Service areas functions
+  async getServiceAreas() {
+    const { data, error } = await supabase
+      .from('service_areas')
+      .select('*')
+      .eq('is_active', true)
+      .order('name')
+    
+    if (error) throw error
+    return data
+  },
+
+  async createServiceArea(areaData: any) {
+    const { data, error } = await supabase
+      .from('service_areas')
+      .insert(areaData)
+      .select()
+      .single()
+    
+    if (error) throw error
+    return data
+  },
+
+  // Notifications functions
+  async getNotifications(userId: string) {
+    const { data, error } = await supabase
+      .from('notifications')
+      .select('*')
+      .eq('user_id', userId)
+      .order('sent_at', { ascending: false })
+      .limit(50)
+    
+    if (error) throw error
+    return data
+  },
+
+  async markNotificationRead(notificationId: string) {
+    const { data, error } = await supabase
+      .from('notifications')
+      .update({ 
+        is_read: true, 
+        read_at: new Date().toISOString() 
+      })
+      .eq('id', notificationId)
+      .select()
+      .single()
+    
+    if (error) throw error
+    return data
+  },
+
+  async getUnreadNotificationCount(userId: string) {
+    const { count, error } = await supabase
+      .from('notifications')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('is_read', false)
+    
+    if (error) throw error
+    return count || 0
   }
 }
