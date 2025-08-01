@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ArrowLeft, Recycle, Coffee, Smartphone, FileText, Cpu, Trash2, Upload } from "lucide-react"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
+import { useRouter } from "next/navigation"
 
 const wasteTypes = [
   {
@@ -60,17 +61,44 @@ export default function LogWastePage() {
   const [notes, setNotes] = useState("")
   const [photo, setPhoto] = useState<File | null>(null)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const router = useRouter()
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    console.log("Waste logged:", {
-      wasteType: selectedWasteType,
-      amount,
-      unit,
-      date: selectedDate,
-      time: selectedTime,
-      notes,
-      photo,
-    })
+
+    try {
+      const wasteLogData = {
+        wasteType: selectedWasteType,
+        amount: parseFloat(amount),
+        date: selectedDate,
+        time: selectedTime,
+        notes,
+        userId: 'current-user-id', // Replace with actual user ID from auth
+        pointsEarned: calculatePoints(selectedWasteType, parseFloat(amount))
+      }
+
+      console.log("Waste logged:", wasteLogData)
+
+      // Here you would save to Supabase waste_logs table
+      // const { data, error } = await supabase.from('waste_logs').insert([wasteLogData])
+
+      // Redirect back to dashboard after logging
+      router.push("/dashboard")
+    } catch (error) {
+      console.error('Error logging waste:', error)
+    }
+  }
+
+  const calculatePoints = (wasteType: string, amount: number) => {
+    const pointsPerKg = {
+      'Plastic': 10,
+      'Paper': 8,
+      'Metal': 15,
+      'Glass': 12,
+      'Organic': 5,
+      'Electronic': 20
+    }
+    return Math.floor(amount * (pointsPerKg[wasteType as keyof typeof pointsPerKg] || 5))
   }
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {

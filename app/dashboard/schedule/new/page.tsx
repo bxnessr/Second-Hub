@@ -22,12 +22,32 @@ export default function NewSchedulePage() {
     location: "",
   })
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    console.log("Schedule created:", formData)
-    // Here you would typically send the data to your backend
-    // For now, we'll just redirect back to the schedule page
-    router.push("/dashboard/schedule")
+    
+    try {
+      // Here you would save to Supabase
+      const pickupData = {
+        ...formData,
+        userId: 'current-user-id', // Replace with actual user ID from auth
+        status: 'scheduled'
+      }
+      
+      console.log("Schedule created:", pickupData)
+      
+      // Redirect to success page with details
+      const params = new URLSearchParams({
+        date: formData.pickupDate,
+        time: formData.pickupTime,
+        wasteType: formData.wasteType,
+        location: formData.location
+      })
+      
+      router.push(`/dashboard/schedule/success?${params.toString()}`)
+    } catch (error) {
+      console.error('Error scheduling pickup:', error)
+      // Handle error (show toast, etc.)
+    }
   }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
