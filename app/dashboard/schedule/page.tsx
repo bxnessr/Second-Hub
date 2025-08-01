@@ -1,44 +1,95 @@
 
 "use client"
-
-import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Calendar, Clock, Plus, Loader2 } from "lucide-react"
+import { Calendar, Clock, Plus } from "lucide-react"
 import DashboardLayout from "@/components/dashboard-layout"
 import Link from "next/link"
-import { createClient } from "@/lib/supabase"
+import { useState, useEffect } from "react"
+import { supabase } from "@/lib/supabase"
+import type { User } from "@supabase/supabase-js"
 
 interface Pickup {
   id: string
   pickup_date: string
-  pickup_time_start: string
-  pickup_time_end: string
-  waste_types: string[]
+  pickup_time: string
+  waste_type: string
+  weight: number
   status: string
-  notes?: string
+  location: string
   created_at: string
 }
 
+const getStatusColor = (status: string) => {
+  switch (status.toLowerCase()) {
+    case "scheduled":
+      return "bg-blue-100 text-blue-800"
+    case "confirmed":
+      return "bg-green-100 text-green-800"
+    case "pending":
+      return "bg-yellow-100 text-yellow-800"
+    case "completed":
+      return "bg-gray-100 text-gray-800"
+    default:
+      return "bg-gray-100 text-gray-800"
+  }
+}
+
+const formatDate = (dateString: string) => {
+  const date = new Date(dateString)
+  return date.toLocaleDateString('en-US', { 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric' 
+  })
+}
+
+const formatTime = (timeString: string) => {
+  if (!timeString) return 'Not specified'
+  
+  // Handle different time formats
+  if (timeString.includes(':')) {
+    const [hours, minutes] = timeString.split(':')
+    const hour = parseInt(hours)
+    const ampm = hour >= 12 ? 'PM' : 'AM'
+    const displayHour = hour % 12 || 12
+    return `${displayHour}:${minutes} ${ampm}`
+  }
+  
+  // Handle time slots like "morning", "afternoon", "evening"
+  switch (timeString.toLowerCase()) {
+    case "morning":
+      return "8:00 AM - 12:00 PM"
+    case "afternoon":
+      return "12:00 PM - 5:00 PM"
+    case "evening":
+      return "5:00 PM - 8:00 PM"
+    default:
+      return timeString
+  }
+}
+
 export default function SchedulePage() {
-  const [upcomingSchedules, setUpcomingSchedules] = useState<Pickup[]>([])
-  const [completedSchedules, setCompletedSchedules] = useState<Pickup[]>([])
+  const [user, setUser] = useState<User | null>(null)
+  const [upcomingPickups, setUpcomingPickups] = useState<Pickup[]>([])
+  const [completedPickups, setCompletedPickups] = useState<Pickup[]>([])
   const [loading, setLoading] = useState(true)
-  const supabase = createClient()
 
   useEffect(() => {
-    fetchSchedules()
+    fetchPickups()
   }, [])
 
-  const fetchSchedules = async () => {
+  const fetchPickups = async () => {
     try {
-      setLoading(true)
-      
-      // Get current user
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      if (!user) {
+        setLoading(false)
+        return
+      }
+
+      setUser(user)
 
       // Fetch all pickups for the user
       const { data: pickups, error } = await supabase
@@ -49,62 +100,44 @@ export default function SchedulePage() {
 
       if (error) {
         console.error('Error fetching pickups:', error)
+        setLoading(false)
         return
       }
 
       const now = new Date()
       const today = now.toISOString().split('T')[0]
 
-      // Separate upcoming and completed
-      const upcoming = pickups?.filter(pickup => 
-        pickup.pickup_date >= today && 
-        !['completed', 'cancelled'].includes(pickup.status)
-      ) || []
+      // Separate upcoming and completed pickups
+      const upcoming = pickups?.filter(pickup => {
+        const pickupDate = new Date(pickup.pickup_date)
+        const isUpcoming = pickup.status.toLowerCase() !== 'completed' && 
+                          pickup.pickup_date >= today
+        return isUpcoming
+      }) || []
 
-      const completed = pickups?.filter(pickup => 
-        pickup.pickup_date < today || 
-        ['completed', 'cancelled'].includes(pickup.status)
-      ) || []
+      const completed = pickups?.filter(pickup => {
+        const isCompleted = pickup.status.toLowerCase() === 'completed' || 
+                           pickup.pickup_date < today
+        return isCompleted
+      }) || []
 
-      setUpcomingSchedules(upcoming)
-      setCompletedSchedules(completed)
+      setUpcomingPickups(upcoming)
+      setCompletedPickups(completed)
+      setLoading(false)
     } catch (error) {
       console.error('Error:', error)
-    } finally {
       setLoading(false)
     }
-  }
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "scheduled":
-        return "bg-blue-100 text-blue-800"
-      case "confirmed":
-        return "bg-green-100 text-green-800"
-      case "pending":
-        return "bg-yellow-100 text-yellow-800"
-      case "completed":
-        return "bg-gray-100 text-gray-800"
-      case "cancelled":
-        return "bg-red-100 text-red-800"
-      default:
-        return "bg-gray-100 text-gray-800"
-    }
-  }
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    })
   }
 
   if (loading) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center min-h-64">
-          <Loader2 className="h-8 w-8 animate-spin text-[#1A7F3D]" />
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1A7F3D] mx-auto"></div>
+            <p className="mt-2 text-gray-600">Loading schedules...</p>
+          </div>
         </div>
       </DashboardLayout>
     )
@@ -131,10 +164,10 @@ export default function SchedulePage() {
         <Tabs defaultValue="upcoming" className="space-y-6">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="upcoming">
-              Upcoming Schedules ({upcomingSchedules.length})
+              Upcoming Schedules ({upcomingPickups.length})
             </TabsTrigger>
             <TabsTrigger value="completed">
-              Completed Schedules ({completedSchedules.length})
+              Completed Schedules ({completedPickups.length})
             </TabsTrigger>
           </TabsList>
 
@@ -148,7 +181,7 @@ export default function SchedulePage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {upcomingSchedules.length > 0 ? (
+                {upcomingPickups.length > 0 ? (
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
@@ -156,28 +189,26 @@ export default function SchedulePage() {
                           <th className="text-left py-3 text-gray-600 font-medium">Date</th>
                           <th className="text-left py-3 text-gray-600 font-medium">Time</th>
                           <th className="text-left py-3 text-gray-600 font-medium">Waste Type</th>
+                          <th className="text-left py-3 text-gray-600 font-medium">Weight (kg)</th>
+                          <th className="text-left py-3 text-gray-600 font-medium">Location</th>
                           <th className="text-left py-3 text-gray-600 font-medium">Status</th>
-                          <th className="text-left py-3 text-gray-600 font-medium">Actions</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {upcomingSchedules.map((schedule) => (
-                          <tr key={schedule.id} className="border-b border-gray-100">
-                            <td className="py-4 text-gray-900">{formatDate(schedule.pickup_date)}</td>
+                        {upcomingPickups.map((pickup) => (
+                          <tr key={pickup.id} className="border-b border-gray-100">
+                            <td className="py-4 text-gray-900">{formatDate(pickup.pickup_date)}</td>
                             <td className="py-4 text-gray-700 flex items-center space-x-1">
                               <Clock className="h-4 w-4 text-gray-400" />
-                              <span>{schedule.pickup_time_start} - {schedule.pickup_time_end}</span>
+                              <span>{formatTime(pickup.pickup_time)}</span>
                             </td>
-                            <td className="py-4 text-gray-700">{schedule.waste_types?.join(', ')}</td>
+                            <td className="py-4 text-gray-700 capitalize">{pickup.waste_type}</td>
+                            <td className="py-4 text-gray-700">{pickup.weight}</td>
+                            <td className="py-4 text-gray-700">{pickup.location}</td>
                             <td className="py-4">
-                              <Badge className={getStatusColor(schedule.status)}>
-                                {schedule.status.charAt(0).toUpperCase() + schedule.status.slice(1)}
+                              <Badge className={getStatusColor(pickup.status)}>
+                                {pickup.status}
                               </Badge>
-                            </td>
-                            <td className="py-4">
-                              <Button variant="outline" size="sm" className="text-[#1A7F3D] border-[#1A7F3D] bg-transparent">
-                                Reschedule
-                              </Button>
                             </td>
                           </tr>
                         ))}
@@ -210,7 +241,7 @@ export default function SchedulePage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {completedSchedules.length > 0 ? (
+                {completedPickups.length > 0 ? (
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
@@ -218,21 +249,25 @@ export default function SchedulePage() {
                           <th className="text-left py-3 text-gray-600 font-medium">Date</th>
                           <th className="text-left py-3 text-gray-600 font-medium">Time</th>
                           <th className="text-left py-3 text-gray-600 font-medium">Waste Type</th>
+                          <th className="text-left py-3 text-gray-600 font-medium">Weight (kg)</th>
+                          <th className="text-left py-3 text-gray-600 font-medium">Location</th>
                           <th className="text-left py-3 text-gray-600 font-medium">Status</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {completedSchedules.map((schedule) => (
-                          <tr key={schedule.id} className="border-b border-gray-100">
-                            <td className="py-4 text-gray-900">{formatDate(schedule.pickup_date)}</td>
+                        {completedPickups.map((pickup) => (
+                          <tr key={pickup.id} className="border-b border-gray-100">
+                            <td className="py-4 text-gray-900">{formatDate(pickup.pickup_date)}</td>
                             <td className="py-4 text-gray-700 flex items-center space-x-1">
                               <Clock className="h-4 w-4 text-gray-400" />
-                              <span>{schedule.pickup_time_start} - {schedule.pickup_time_end}</span>
+                              <span>{formatTime(pickup.pickup_time)}</span>
                             </td>
-                            <td className="py-4 text-gray-700">{schedule.waste_types?.join(', ')}</td>
+                            <td className="py-4 text-gray-700 capitalize">{pickup.waste_type}</td>
+                            <td className="py-4 text-gray-700">{pickup.weight}</td>
+                            <td className="py-4 text-gray-700">{pickup.location}</td>
                             <td className="py-4">
-                              <Badge className={getStatusColor(schedule.status)}>
-                                {schedule.status.charAt(0).toUpperCase() + schedule.status.slice(1)}
+                              <Badge className={getStatusColor(pickup.status)}>
+                                {pickup.status}
                               </Badge>
                             </td>
                           </tr>
