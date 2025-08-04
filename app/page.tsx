@@ -1,3 +1,4 @@
+"use client"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Leaf, Truck, Gift } from "lucide-react"
@@ -54,15 +55,30 @@ export default function LandingPage() {
                 </Link>
               </div>
             </div>
-            <div className="relative flex justify-center order-1 lg:order-2">
-              <Image
-                src="/images/eco-landing-illustration.jpg"
-                alt="Eco-friendly waste management illustration"
-                width={700}
-                height={500}
-                className="rounded-2xl shadow-2xl object-contain w-full max-w-[500px] h-auto"
-                priority
-              />
+            {/* Floating Animation */}
+            <div className="relative flex justify-center order-1 lg:order-2 min-h-[400px]">
+              <div className="absolute top-1/4 left-1/4 animate-float-slow w-32 h-32 bg-[#1A7F3D]/80 rounded-full blur-xl" />
+              <div className="absolute top-1/2 left-2/3 animate-float-fast w-20 h-20 bg-white/95 rounded-full blur-lg" />
+              <div className="absolute top-2/3 left-1/3 animate-float-medium w-16 h-16 bg-[#1A7F3D]/90 rounded-full blur-md" />
+              <div className="absolute top-1/3 left-2/4 animate-float-medium w-24 h-24 bg-white/100 rounded-full blur-lg" />
+              <div className="absolute top-2/4 left-1/2 animate-float-slow w-12 h-12 bg-[#1A7F3D]/80 rounded-full blur-md" />
+              <style jsx>{`
+                @keyframes float-slow {
+                  0%, 100% { transform: translateY(0) scale(1); }
+                  50% { transform: translateY(-30px) scale(1.05); }
+                }
+                @keyframes float-medium {
+                  0%, 100% { transform: translateY(0) scale(1); }
+                  50% { transform: translateY(-15px) scale(1.08); }
+                }
+                @keyframes float-fast {
+                  0%, 100% { transform: translateY(0) scale(1); }
+                  50% { transform: translateY(-40px) scale(0.95); }
+                }
+                .animate-float-slow { animation: float-slow 7s ease-in-out infinite; }
+                .animate-float-medium { animation: float-medium 4s ease-in-out infinite; }
+                .animate-float-fast { animation: float-fast 2.5s ease-in-out infinite; }
+              `}</style>
             </div>
           </div>
         </div>

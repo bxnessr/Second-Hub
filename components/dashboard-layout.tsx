@@ -29,6 +29,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const router = useRouter()
 
   useEffect(() => {
+    let subscription: any = null
     const getUserAndProfile = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       setUser(user)
@@ -39,9 +40,30 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           .eq("id", user.id)
           .single()
         setProfile(profileData)
+        // Subscribe to real-time updates for this user's profile
+        subscription = supabase
+          .channel('profile-updates')
+          .on('postgres_changes', {
+            event: '*',
+            schema: 'public',
+            table: 'profiles',
+            filter: `id=eq.${user.id}`
+          }, payload => {
+            if (payload.new) {
+              setProfile({
+                first_name: payload.new.first_name,
+                nickname: payload.new.nickname,
+                profile_pic: payload.new.profile_pic
+              })
+            }
+          })
+          .subscribe()
       }
     }
     getUserAndProfile()
+    return () => {
+      if (subscription) supabase.removeChannel(subscription)
+    }
   }, [])
 
   const handleLogout = async () => {
@@ -68,17 +90,17 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 flex flex-col lg:flex-row">
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
 
       {/* Sidebar */}
-      <div
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 w-56 bg-white shadow-lg transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        } lg:static lg:inset-0`}
+        } lg:static lg:inset-0 lg:w-56 flex flex-col`}
       >
         {/* Sidebar Header */}
         <div className="flex items-center justify-between p-4 border-b">
@@ -92,7 +114,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         </div>
 
         {/* Navigation */}
-        <nav className="p-4 space-y-1">
+        <nav className="p-2 flex-1 space-y-1">
           {menuItems.map((item) => {
             const Icon = item.icon
             const isActive =
@@ -102,7 +124,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             return (
               <Link key={item.route} href={item.route}>
                 <div
-                  className={`flex items-center space-x-3 px-3 py-3 rounded-lg transition-colors ${
+                  className={`flex items-center space-x-3 px-3 py-2 rounded-md transition-colors ${
                     isActive ? "bg-gray-100 text-gray-900" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                   }`}
                 >
@@ -115,28 +137,28 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         </nav>
 
         {/* Bottom Navigation */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t space-y-1">
+        <div className="p-2 border-t space-y-1">
           <Link href="/dashboard/settings">
-            <div className="flex items-center space-x-3 px-3 py-3 rounded-lg text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors">
+            <div className="flex items-center space-x-3 px-3 py-2 rounded-md text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors">
               <Settings className="h-5 w-5" />
               <span className="font-medium">Settings</span>
             </div>
           </Link>
           <button
             onClick={handleLogout}
-            className="w-full flex items-center space-x-3 px-3 py-3 rounded-lg text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors"
+            className="w-full flex items-center space-x-3 px-3 py-2 rounded-md text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors"
           >
             <LogOut className="h-5 w-5" />
             <span className="font-medium">Logout</span>
           </button>
         </div>
-      </div>
+      </aside>
 
       {/* Main Content */}
-      <div className="lg:ml-64">
+      <div className="flex-1 flex flex-col min-w-0">
         {/* Top Bar */}
-        <header className="bg-white shadow-sm border-b">
-          <div className="flex items-center justify-between px-4 py-3">
+        <header className="bg-white shadow-sm border-b sticky top-0 z-30">
+          <div className="flex items-center justify-between px-6 py-4">
             <Button variant="ghost" size="sm" className="lg:hidden" onClick={() => setSidebarOpen(true)}>
               <Menu className="h-5 w-5" />
             </Button>
@@ -162,7 +184,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         </header>
 
         {/* Page Content */}
-        <main className="p-4">{children}</main>
+        <main className="flex-1 p-6 max-w-6xl w-full mx-auto">{children}</main>
       </div>
     </div>
   )

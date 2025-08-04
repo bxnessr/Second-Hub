@@ -148,7 +148,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center">
@@ -207,7 +207,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Main Content Grid */}
-        <div className="grid lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
           {/* Recent Activity */}
           <Card>
             <CardHeader>
@@ -300,23 +300,21 @@ export default function DashboardPage() {
             <CardTitle className="text-lg">Quick Actions</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
               <Link href="/dashboard/log-waste">
-                <Button className="w-full h-20 bg-[#1A7F3D] hover:bg-[#1A7F3D]/90 text-white flex flex-col items-center justify-center space-y-2">
+                <Button className="w-full min-h-[72px] bg-[#1A7F3D] hover:bg-[#1A7F3D]/90 text-white flex flex-col items-center justify-center space-y-2">
                   <Plus className="h-6 w-6" />
                   <span>Log Waste</span>
                 </Button>
               </Link>
-              
               <Link href="/dashboard/schedule/new">
-                <Button className="w-full h-20 bg-blue-600 hover:bg-blue-700 text-white flex flex-col items-center justify-center space-y-2">
+                <Button className="w-full min-h-[72px] bg-blue-600 hover:bg-blue-700 text-white flex flex-col items-center justify-center space-y-2">
                   <Calendar className="h-6 w-6" />
                   <span>Schedule Pickup</span>
                 </Button>
               </Link>
-              
               <Link href="/dashboard/rewards">
-                <Button className="w-full h-20 bg-purple-600 hover:bg-purple-700 text-white flex flex-col items-center justify-center space-y-2">
+                <Button className="w-full min-h-[72px] bg-purple-600 hover:bg-purple-700 text-white flex flex-col items-center justify-center space-y-2">
                   <Gift className="h-6 w-6" />
                   <span>View Rewards</span>
                 </Button>
