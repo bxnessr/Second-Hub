@@ -1,6 +1,7 @@
+
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -8,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Leaf, UploadCloud } from "lucide-react";
 
-export default function OnboardingPage() {
+function OnboardingForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const emailParam = searchParams.get("email");
@@ -175,5 +176,13 @@ export default function OnboardingPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function OnboardingPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-50 flex items-center justify-center p-4">Loading...</div>}>
+      <OnboardingForm />
+    </Suspense>
   );
 }
