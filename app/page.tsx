@@ -36,17 +36,17 @@ export default function LandingPage() {
         <div className="absolute inset-0 bg-gradient-to-br from-green-50 to-emerald-50"></div>
         <div className="container mx-auto px-4 relative z-10">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <div className="space-y-8">
+            <div className="space-y-8 order-2 lg:order-1">
               <div className="space-y-4">
-                <h1 className="text-4xl lg:text-6xl font-bold text-gray-900 leading-tight">
+                <h1 className="text-4xl lg:text-6xl font-bold text-gray-900 leading-tight text-center lg:text-left">
                   Simplifying Waste Management,
                   <span className="text-[#1A7F3D]"> Rewarding Sustainability</span>
                 </h1>
-                <p className="text-xl text-gray-600 leading-relaxed">
+                <p className="text-xl text-gray-600 leading-relaxed text-center lg:text-left">
                   Log waste, schedule pickups, and earn rewards for keeping the environment clean.
                 </p>
               </div>
-              <div className="flex justify-center">
+              <div className="flex justify-center lg:justify-start">
                 <Link href="/signin">
                   <Button size="lg" className="bg-[#1A7F3D] hover:bg-[#1A7F3D]/90 text-white px-8 py-3 text-lg">
                     Get Started
@@ -54,13 +54,13 @@ export default function LandingPage() {
                 </Link>
               </div>
             </div>
-            <div className="relative">
+            <div className="relative flex justify-center order-1 lg:order-2">
               <Image
-                src="/images/dashboard-mobile.jpg"
-                alt="Eco-friendly city"
-                width={600}
+                src="/images/eco-landing-illustration.jpg"
+                alt="Eco-friendly waste management illustration"
+                width={700}
                 height={500}
-                className="rounded-2xl shadow-2xl object-cover"
+                className="rounded-2xl shadow-2xl object-contain w-full max-w-[500px] h-auto"
                 priority
               />
             </div>

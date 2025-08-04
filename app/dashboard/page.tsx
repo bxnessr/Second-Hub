@@ -17,7 +17,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import DashboardLayout from "@/components/dashboard-layout"
-import { createClient } from "@/lib/supabase"
+import { supabase } from "@/lib/supabase"
 
 interface UserStats {
   totalPoints: number

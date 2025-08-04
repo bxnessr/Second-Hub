@@ -9,7 +9,6 @@ import { Home, PlusCircle, Calendar, Gift, Settings, LogOut, Menu, X, Leaf, Bell
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
-import type { User } from "@supabase/supabase-js"
 
 const menuItems = [
   { label: "Dashboard", icon: Home, route: "/dashboard" },
@@ -24,18 +23,25 @@ interface DashboardLayoutProps {
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [user, setUser] = useState<User | null>(null)
+  const [user, setUser] = useState<any>(null)
+  const [profile, setProfile] = useState<any>(null)
   const pathname = usePathname()
   const router = useRouter()
 
   useEffect(() => {
-    const getUser = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
+    const getUserAndProfile = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
       setUser(user)
+      if (user) {
+        const { data: profileData } = await supabase
+          .from("profiles")
+          .select("first_name, nickname, profile_pic")
+          .eq("id", user.id)
+          .single()
+        setProfile(profileData)
+      }
     }
-    getUser()
+    getUserAndProfile()
   }, [])
 
   const handleLogout = async () => {
@@ -48,16 +54,16 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   }
 
   const getUserDisplayName = () => {
-    if (user?.user_metadata?.first_name && user?.user_metadata?.last_name) {
-      return `${user.user_metadata.first_name} ${user.user_metadata.last_name}`
-    }
-    return user?.email?.split("@")[0] || "User"
+    if (profile?.nickname) return profile.nickname
+    if (profile?.first_name) return profile.first_name
+    if (user?.user_metadata?.first_name) return user.user_metadata.first_name
+    return user?.email?.split("@")?.[0] || "User"
   }
 
   const getUserInitials = () => {
-    if (user?.user_metadata?.first_name && user?.user_metadata?.last_name) {
-      return `${user.user_metadata.first_name[0]}${user.user_metadata.last_name[0]}`
-    }
+    if (profile?.nickname) return profile.nickname[0].toUpperCase()
+    if (profile?.first_name) return profile.first_name[0].toUpperCase()
+    if (user?.user_metadata?.first_name) return user.user_metadata.first_name[0].toUpperCase()
     return user?.email?.[0]?.toUpperCase() || "U"
   }
 
@@ -143,10 +149,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
               <div className="flex items-center space-x-2">
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src="/placeholder.svg?height=32&width=32" />
+                  <AvatarImage src={profile?.profile_pic || "/placeholder-user.jpg"} />
                   <AvatarFallback>{getUserInitials()}</AvatarFallback>
                 </Avatar>
-                <span className="text-sm font-medium text-gray-900">{getUserDisplayName()}</span>
+                <Link href="/profile">
+                  <span className="text-sm font-medium text-gray-900 hover:underline cursor-pointer">{getUserDisplayName()}</span>
+                </Link>
                 <ChevronDown className="h-4 w-4 text-gray-500" />
               </div>
             </div>

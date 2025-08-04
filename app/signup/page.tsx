@@ -27,26 +27,26 @@ export default function SignUpPage() {
   const [error, setError] = useState("")
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError("")
-    setLoading(true)
+    e.preventDefault();
+    setError("");
+    setLoading(true);
 
     // Validate passwords match
     if (formData.password !== formData.confirmPassword) {
-      setError("Passwords do not match")
-      setLoading(false)
-      return
+      setError("Passwords do not match");
+      setLoading(false);
+      return;
     }
 
     // Validate password length
     if (formData.password.length < 6) {
-      setError("Password must be at least 6 characters long")
-      setLoading(false)
-      return
+      setError("Password must be at least 6 characters long");
+      setLoading(false);
+      return;
     }
 
     try {
-      const { data, error } = await supabase.auth.signUp({
+      const { error } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
         options: {
@@ -57,21 +57,38 @@ export default function SignUpPage() {
             role: "user",
           },
         },
-      })
+      });
 
       if (error) {
-        setError(error.message)
+        // Handle specific error messages
+        if (error.message.toLowerCase().includes("password")) {
+          setError("Password Incorrect");
+        } else if (error.message.toLowerCase().includes("otp") || error.message.toLowerCase().includes("code")) {
+          setError("Invalid OTP");
+        } else {
+          setError(error.message);
+        }
       } else {
         // Redirect to verification page with email parameter
-        router.push(`/verify?email=${encodeURIComponent(formData.email)}`)
+        router.push(`/verify?email=${encodeURIComponent(formData.email)}`);
       }
-    } catch (error) {
-      setError("An unexpected error occurred")
-      console.error("Sign up error:", error)
+    } catch (error: any) {
+      if (typeof error?.message === "string") {
+        if (error.message.toLowerCase().includes("password")) {
+          setError("Password Incorrect");
+        } else if (error.message.toLowerCase().includes("otp") || error.message.toLowerCase().includes("code")) {
+          setError("Invalid OTP");
+        } else {
+          setError(error.message);
+        }
+      } else {
+        setError("An unexpected error occurred");
+      }
+      console.error("Sign up error:", error);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
