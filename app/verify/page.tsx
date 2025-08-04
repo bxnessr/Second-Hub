@@ -57,9 +57,9 @@ export default function VerifyPage() {
       if (error) {
         setError(error.message)
       } else {
-        setSuccess("Verification successful! Redirecting to dashboard...")
+        setSuccess("Verification successful! Redirecting to onboarding...")
         setTimeout(() => {
-          router.push("/dashboard")
+          router.push(`/onboarding?email=${encodeURIComponent(email)}`)
         }, 2000)
       }
     } catch (error) {

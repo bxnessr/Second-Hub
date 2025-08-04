@@ -56,11 +56,12 @@ export default function LandingPage() {
             </div>
             <div className="relative">
               <Image
-                src="/placeholder.svg?height=500&width=600"
+                src="/images/dashboard-mobile.jpg"
                 alt="Eco-friendly city"
                 width={600}
                 height={500}
-                className="rounded-2xl shadow-2xl"
+                className="rounded-2xl shadow-2xl object-cover"
+                priority
               />
             </div>
           </div>
