@@ -9,7 +9,6 @@ import { Home, PlusCircle, Calendar, Gift, Settings, LogOut, Menu, X, Leaf, Bell
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
-import type { User } from "@supabase/supabase-js"
 
 const menuItems = [
   { label: "Dashboard", icon: Home, route: "/dashboard" },
@@ -24,18 +23,47 @@ interface DashboardLayoutProps {
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [user, setUser] = useState<User | null>(null)
+  const [user, setUser] = useState<any>(null)
+  const [profile, setProfile] = useState<any>(null)
   const pathname = usePathname()
   const router = useRouter()
 
   useEffect(() => {
-    const getUser = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
+    let subscription: any = null
+    const getUserAndProfile = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
       setUser(user)
+      if (user) {
+        const { data: profileData } = await supabase
+          .from("profiles")
+          .select("first_name, nickname, profile_pic")
+          .eq("id", user.id)
+          .single()
+        setProfile(profileData)
+        // Subscribe to real-time updates for this user's profile
+        subscription = supabase
+          .channel('profile-updates')
+          .on('postgres_changes', {
+            event: '*',
+            schema: 'public',
+            table: 'profiles',
+            filter: `id=eq.${user.id}`
+          }, payload => {
+            if (payload.new) {
+              setProfile({
+                first_name: payload.new.first_name,
+                nickname: payload.new.nickname,
+                profile_pic: payload.new.profile_pic
+              })
+            }
+          })
+          .subscribe()
+      }
     }
-    getUser()
+    getUserAndProfile()
+    return () => {
+      if (subscription) supabase.removeChannel(subscription)
+    }
   }, [])
 
   const handleLogout = async () => {
@@ -48,31 +76,31 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   }
 
   const getUserDisplayName = () => {
-    if (user?.user_metadata?.first_name && user?.user_metadata?.last_name) {
-      return `${user.user_metadata.first_name} ${user.user_metadata.last_name}`
-    }
-    return user?.email?.split("@")[0] || "User"
+    if (profile?.nickname) return profile.nickname
+    if (profile?.first_name) return profile.first_name
+    if (user?.user_metadata?.first_name) return user.user_metadata.first_name
+    return user?.email?.split("@")?.[0] || "User"
   }
 
   const getUserInitials = () => {
-    if (user?.user_metadata?.first_name && user?.user_metadata?.last_name) {
-      return `${user.user_metadata.first_name[0]}${user.user_metadata.last_name[0]}`
-    }
+    if (profile?.nickname) return profile.nickname[0].toUpperCase()
+    if (profile?.first_name) return profile.first_name[0].toUpperCase()
+    if (user?.user_metadata?.first_name) return user.user_metadata.first_name[0].toUpperCase()
     return user?.email?.[0]?.toUpperCase() || "U"
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 flex flex-col lg:flex-row">
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
 
       {/* Sidebar */}
-      <div
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 w-56 bg-white shadow-lg transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        } lg:static lg:inset-0`}
+        } lg:static lg:inset-0 lg:w-56 flex flex-col`}
       >
         {/* Sidebar Header */}
         <div className="flex items-center justify-between p-4 border-b">
@@ -86,7 +114,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         </div>
 
         {/* Navigation */}
-        <nav className="p-4 space-y-1">
+        <nav className="p-2 flex-1 space-y-1">
           {menuItems.map((item) => {
             const Icon = item.icon
             const isActive =
@@ -96,7 +124,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             return (
               <Link key={item.route} href={item.route}>
                 <div
-                  className={`flex items-center space-x-3 px-3 py-3 rounded-lg transition-colors ${
+                  className={`flex items-center space-x-3 px-3 py-2 rounded-md transition-colors ${
                     isActive ? "bg-gray-100 text-gray-900" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                   }`}
                 >
@@ -109,28 +137,28 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         </nav>
 
         {/* Bottom Navigation */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t space-y-1">
+        <div className="p-2 border-t space-y-1">
           <Link href="/dashboard/settings">
-            <div className="flex items-center space-x-3 px-3 py-3 rounded-lg text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors">
+            <div className="flex items-center space-x-3 px-3 py-2 rounded-md text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors">
               <Settings className="h-5 w-5" />
               <span className="font-medium">Settings</span>
             </div>
           </Link>
           <button
             onClick={handleLogout}
-            className="w-full flex items-center space-x-3 px-3 py-3 rounded-lg text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors"
+            className="w-full flex items-center space-x-3 px-3 py-2 rounded-md text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors"
           >
             <LogOut className="h-5 w-5" />
             <span className="font-medium">Logout</span>
           </button>
         </div>
-      </div>
+      </aside>
 
       {/* Main Content */}
-      <div className="lg:ml-64">
+      <div className="flex-1 flex flex-col min-w-0">
         {/* Top Bar */}
-        <header className="bg-white shadow-sm border-b">
-          <div className="flex items-center justify-between px-4 py-3">
+        <header className="bg-white shadow-sm border-b sticky top-0 z-30">
+          <div className="flex items-center justify-between px-6 py-4">
             <Button variant="ghost" size="sm" className="lg:hidden" onClick={() => setSidebarOpen(true)}>
               <Menu className="h-5 w-5" />
             </Button>
@@ -143,10 +171,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
               <div className="flex items-center space-x-2">
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src="/placeholder.svg?height=32&width=32" />
+                  <AvatarImage src={profile?.profile_pic || "/placeholder-user.jpg"} />
                   <AvatarFallback>{getUserInitials()}</AvatarFallback>
                 </Avatar>
-                <span className="text-sm font-medium text-gray-900">{getUserDisplayName()}</span>
+                <Link href="/profile">
+                  <span className="text-sm font-medium text-gray-900 hover:underline cursor-pointer">{getUserDisplayName()}</span>
+                </Link>
                 <ChevronDown className="h-4 w-4 text-gray-500" />
               </div>
             </div>
@@ -154,7 +184,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         </header>
 
         {/* Page Content */}
-        <main className="p-4">{children}</main>
+        <main className="flex-1 p-6 max-w-6xl w-full mx-auto">{children}</main>
       </div>
     </div>
   )
